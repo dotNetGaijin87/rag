@@ -20,17 +20,23 @@ Nothing ever leaves your machine.
 
 ## The app — three tabs
 
-```
-┌──────────────────┬───────────────────┬────────────┐
-│ ▦ Knowledge base │ ⬡ Knowledge graph │ ⚙ Settings │
-└──────────────────┴───────────────────┴────────────┘
-```
+### ▦ Knowledge base
+Paste text to ingest (chunk → embed → extract graph), then ask questions. Answers come with
+expandable **sources** — the retrieved passages and the knowledge-graph facts used.
 
-| Tab | What it does |
-|-----|--------------|
-| **▦ Knowledge base** | Paste text to ingest (chunk → embed → extract graph), then ask questions. Answers come with expandable **sources** — the retrieved passages and the knowledge-graph facts used. |
-| **⬡ Knowledge graph** | Interactive [Cytoscape](https://js.cytoscape.org/) view of the extracted entities (coloured by type) and their relationships. Drag nodes, scroll to zoom, refresh after ingesting. |
-| **⚙ Settings** | Live-tune the RAG pipeline — chunk size / overlap, top‑K, max extraction characters, and the entity-extraction toggle. Changes apply immediately. |
+![Knowledge base tab](docs/img/knowledge-base.png)
+
+### ⬡ Knowledge graph
+Interactive [Cytoscape](https://js.cytoscape.org/) view of the extracted entities (coloured
+by type) and their relationships. Drag nodes, scroll to zoom, refresh after ingesting.
+
+![Knowledge graph tab](docs/img/knowledge-graph.png)
+
+### ⚙ Settings
+Live-tune the RAG pipeline — chunk size / overlap, top‑K, max extraction characters, and the
+entity-extraction toggle. Changes apply immediately.
+
+![Settings tab](docs/img/settings.png)
 
 ## Quick start
 
