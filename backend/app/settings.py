@@ -44,7 +44,6 @@ class RuntimeSettings:
 
     def __init__(self, config: Config) -> None:
         self._lock = RLock()
-        # Editable
         self.chunk_size = config.chunk_size
         self.chunk_overlap = config.chunk_overlap
         self.top_k = config.top_k

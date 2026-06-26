@@ -7,10 +7,6 @@ from __future__ import annotations
 
 from ..domain.models import RetrievalContext
 
-# --------------------------------------------------------------------------- #
-# Knowledge-graph extraction
-# --------------------------------------------------------------------------- #
-
 EXTRACTION_SYSTEM = (
     "You are an expert at building knowledge graphs from text. "
     "You extract the key entities and the relationships between them. "
@@ -46,10 +42,6 @@ Text:
 def extraction_prompt(text: str) -> str:
     return EXTRACTION_PROMPT_TEMPLATE.format(text=text)
 
-
-# --------------------------------------------------------------------------- #
-# Answering
-# --------------------------------------------------------------------------- #
 
 ANSWER_SYSTEM = (
     "You are a helpful assistant that answers questions using ONLY the provided "

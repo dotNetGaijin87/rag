@@ -28,7 +28,6 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
         addition = len(word) + (1 if current else 0)
         if current_len + addition > chunk_size and current:
             chunks.append(" ".join(current))
-            # Build the overlap tail from the end of the current chunk.
             current, current_len = _overlap_tail(current, overlap)
         if current:
             current_len += len(word) + 1

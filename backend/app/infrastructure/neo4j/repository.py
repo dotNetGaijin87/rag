@@ -84,10 +84,6 @@ class Neo4jGraphRepository(GraphRepository):
         self._driver = GraphDatabase.driver(uri, auth=(user, password))
         self._embedding_dim = embedding_dim
 
-    # ------------------------------------------------------------------ #
-    # Schema
-    # ------------------------------------------------------------------ #
-
     def ensure_schema(self, retries: int = 30, delay: float = 2.0) -> None:
         """Wait for Neo4j, then create constraints and indexes idempotently."""
         last_error: Exception | None = None
@@ -128,10 +124,6 @@ class Neo4jGraphRepository(GraphRepository):
                 "FOR (c:Chunk) ON EACH [c.text]"
             )
         logger.info("Neo4j schema ensured.")
-
-    # ------------------------------------------------------------------ #
-    # Writes
-    # ------------------------------------------------------------------ #
 
     def save_document(
         self,
@@ -185,7 +177,6 @@ class Neo4jGraphRepository(GraphRepository):
         relationship_rows: list[dict],
         entity_names: list[str],
     ) -> None:
-        # 1. Document + chunks (with embeddings).
         tx.run(
             """
             MERGE (d:Document {id: $document_id})
@@ -204,7 +195,6 @@ class Neo4jGraphRepository(GraphRepository):
             chunks=chunk_rows,
         )
 
-        # 2. Entities.
         if entity_rows:
             tx.run(
                 """
@@ -218,7 +208,7 @@ class Neo4jGraphRepository(GraphRepository):
                 entities=entity_rows,
             )
 
-        # 3. Relationships (single RELATED_TO type, semantic verb kept as a property).
+        # Single RELATED_TO type; the semantic verb is stored as a property.
         if relationship_rows:
             tx.run(
                 """
@@ -231,7 +221,7 @@ class Neo4jGraphRepository(GraphRepository):
                 relationships=relationship_rows,
             )
 
-        # 4. Link chunks to the entities they mention (substring match within this doc).
+        # Link chunks to the entities they mention (substring match, scoped to this doc).
         if entity_names:
             tx.run(
                 """
@@ -244,10 +234,6 @@ class Neo4jGraphRepository(GraphRepository):
                 document_id=document_id,
                 names=entity_names,
             )
-
-    # ------------------------------------------------------------------ #
-    # Reads
-    # ------------------------------------------------------------------ #
 
     def search_chunks(
         self, query_text: str, query_embedding: list[float], k: int

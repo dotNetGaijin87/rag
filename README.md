@@ -18,13 +18,18 @@ Nothing ever leaves your machine.
                                                 ▼   Ollama (nomic-embed-text · llama3.2)
 ```
 
-## The app — three tabs
+## The app — four tabs
 
-### ▦ Knowledge base
-Paste text to ingest (chunk → embed → extract graph), then ask questions. Answers come with
-expandable **sources** — the retrieved passages and the knowledge-graph facts used.
+### ＋ Add knowledge
+Paste any text — it's chunked, embedded, and an entity/relationship graph is extracted into Neo4j.
 
-![Knowledge base tab](docs/img/knowledge-base.png)
+![Add knowledge tab](docs/img/add-knowledge.png)
+
+### 💬 Ask
+Your question is embedded, matched against stored chunks (hybrid vector + keyword), expanded
+over the graph, and answered by the local LLM — with expandable **sources** (passages + graph facts).
+
+![Ask tab](docs/img/ask.png)
 
 ### ⬡ Knowledge graph
 Interactive [Cytoscape](https://js.cytoscape.org/) view of the extracted entities (coloured

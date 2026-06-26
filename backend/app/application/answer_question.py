@@ -38,13 +38,12 @@ class AnswerQuestionUseCase:
         if not question:
             raise ValueError("Question must not be empty.")
 
-        # 1. Embed the query with the SAME model used at ingest time.
+        # Must use the same embedding model as ingestion, or the vectors won't compare.
         query_embedding = self._embeddings.embed_query(question)
 
-        # 2. Hybrid search (vector + full-text) for the most relevant chunks.
         chunks = self._graph.search_chunks(question, query_embedding, self._settings.top_k)
 
-        # 3. Graph expansion: pull relationships around the entities those chunks mention.
+        # Graph expansion: pull relationships around the entities those chunks mention.
         entity_names = sorted({name for chunk in chunks for name in chunk.entities})
         facts = (
             self._graph.graph_facts_for_entities(entity_names, self._max_facts)
@@ -60,7 +59,6 @@ class AnswerQuestionUseCase:
             len(facts),
         )
 
-        # 4. Generate a grounded answer.
         if not chunks and not facts:
             return Answer(
                 question=question,

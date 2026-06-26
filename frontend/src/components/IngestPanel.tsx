@@ -37,9 +37,9 @@ export function IngestPanel({ onIngested }: Props) {
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, height: '100%' }}>
+    <Paper variant="outlined" sx={{ p: 3 }}>
       <Typography variant="h6" gutterBottom>
-        1 · Add knowledge
+        Add knowledge
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Paste any text. It is chunked, embedded, and an entity/relationship graph is

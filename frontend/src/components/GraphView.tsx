@@ -14,13 +14,13 @@ import { api, ApiError } from '../api/client';
 import type { GraphData } from '../api/types';
 
 const TYPE_COLORS: Record<string, string> = {
-  Person: '#6c7bff',
-  Organization: '#2ecc8f',
-  Location: '#ff9f43',
-  Concept: '#a66bff',
-  Product: '#ff6b6b',
-  Event: '#4bc0c0',
-  Other: '#9aa3c7',
+  Person: '#a3e635',
+  Organization: '#84cc16',
+  Location: '#4ade80',
+  Concept: '#c2f23a',
+  Product: '#bef264',
+  Event: '#22c55e',
+  Other: '#8b948a',
 };
 
 function colorForType(type: string): string {
@@ -34,13 +34,13 @@ const CY_STYLE: cytoscape.StylesheetJson = [
     style: {
       'background-color': 'data(color)',
       label: 'data(label)',
-      color: '#e7e9f3',
+      color: '#eef3ea',
       'font-size': 10,
       'text-valign': 'center',
       'text-halign': 'center',
       'text-wrap': 'wrap',
       'text-max-width': '90px',
-      'text-outline-color': '#0f1220',
+      'text-outline-color': '#0a0c0a',
       'text-outline-width': 2,
       width: 'data(size)',
       height: 'data(size)',
@@ -51,14 +51,14 @@ const CY_STYLE: cytoscape.StylesheetJson = [
     style: {
       label: 'data(label)',
       width: 1.4,
-      'line-color': '#3a4472',
-      'target-arrow-color': '#3a4472',
+      'line-color': '#3a4630',
+      'target-arrow-color': '#3a4630',
       'target-arrow-shape': 'triangle',
       'curve-style': 'bezier',
       'font-size': 8,
-      color: '#9aa3c7',
+      color: '#8b948a',
       'text-rotation': 'autorotate',
-      'text-background-color': '#0f1220',
+      'text-background-color': '#0a0c0a',
       'text-background-opacity': 1,
       'text-background-padding': '2px',
     },
@@ -81,7 +81,6 @@ export function GraphView() {
       (e) => nodeIds.has(e.source) && nodeIds.has(e.target),
     );
 
-    // Node size grows with its number of connections.
     const degree = new Map<string, number>();
     for (const e of validEdges) {
       degree.set(e.source, (degree.get(e.source) ?? 0) + 1);

@@ -4,13 +4,13 @@ import {
   Box,
   CircularProgress,
   Container,
-  Stack,
   Tab,
   Tabs,
   Toolbar,
   Typography,
 } from '@mui/material';
-import StorageIcon from '@mui/icons-material/Storage';
+import PostAddIcon from '@mui/icons-material/PostAdd';
+import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import HubIcon from '@mui/icons-material/Hub';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { api } from './api/client';
@@ -20,7 +20,7 @@ import { QueryPanel } from './components/QueryPanel';
 import { StatsBar } from './components/StatsBar';
 import { SettingsPanel } from './components/SettingsPanel';
 
-// Lazy-loaded so the heavy Cytoscape bundle is only fetched when the graph tab opens.
+// Heavy Cytoscape bundle — only fetched when the graph tab opens.
 const GraphView = lazy(() =>
   import('./components/GraphView').then((m) => ({ default: m.GraphView })),
 );
@@ -47,7 +47,16 @@ export default function App() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', pb: 8 }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        pb: 8,
+        backgroundImage:
+          'linear-gradient(rgba(194,242,58,0.035) 1px, transparent 1px), ' +
+          'linear-gradient(90deg, rgba(194,242,58,0.035) 1px, transparent 1px)',
+        backgroundSize: '44px 44px',
+      }}
+    >
       <AppBar
         position="static"
         color="transparent"
@@ -59,7 +68,7 @@ export default function App() {
             variant="h5"
             sx={{
               fontWeight: 700,
-              background: 'linear-gradient(90deg, #8590ff, #2ecc8f)',
+              background: 'linear-gradient(90deg, #d7f96a, #b4e832)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
@@ -77,24 +86,26 @@ export default function App() {
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 3 }}>
           <Tabs value={tab} onChange={(_, value: number) => setTab(value)}>
-            <Tab icon={<StorageIcon />} iconPosition="start" label="Knowledge base" />
+            <Tab icon={<PostAddIcon />} iconPosition="start" label="Add knowledge" />
+            <Tab icon={<QuestionAnswerIcon />} iconPosition="start" label="Ask" />
             <Tab icon={<HubIcon />} iconPosition="start" label="Knowledge graph" />
             <Tab icon={<SettingsIcon />} iconPosition="start" label="Settings" />
           </Tabs>
         </Box>
 
         <TabPanel value={tab} index={0}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="stretch">
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <IngestPanel onIngested={refreshStats} />
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <QueryPanel />
-            </Box>
-          </Stack>
+          <Box sx={{ maxWidth: 760 }}>
+            <IngestPanel onIngested={refreshStats} />
+          </Box>
         </TabPanel>
 
         <TabPanel value={tab} index={1}>
+          <Box sx={{ maxWidth: 820 }}>
+            <QueryPanel />
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={tab} index={2}>
           <Suspense
             fallback={
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -106,7 +117,7 @@ export default function App() {
           </Suspense>
         </TabPanel>
 
-        <TabPanel value={tab} index={2}>
+        <TabPanel value={tab} index={3}>
           <SettingsPanel />
         </TabPanel>
       </Container>

@@ -30,9 +30,9 @@ export function QueryPanel() {
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, height: '100%' }}>
+    <Paper variant="outlined" sx={{ p: 3 }}>
       <Typography variant="h6" gutterBottom>
-        2 · Ask a question
+        Ask a question
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Your question is embedded, matched against stored chunks, expanded over the graph,
