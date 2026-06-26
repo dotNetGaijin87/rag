@@ -1,0 +1,112 @@
+services:
+  # --- Graph database (semantic data + vector index) ---
+  neo4j:
+    image: neo4j:5.23
+    container_name: rag-neo4j
+    ports:
+      - "7474:7474" # Neo4j Browser (http://localhost:7474)
+      - "7687:7687" # Bolt protocol
+    environment:
+      NEO4J_AUTH: "${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-password123}"
+      NEO4J_server_memory_pagecache_size: 512M
+      NEO4J_server_memory_heap_max__size: 1G
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-password123} 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  # --- Local LLM + embeddings server ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag-ollama
+    ports:
+      - "11434:11434"
+    environment:
+      # Go reads extra trusted CAs from this dir — drop your corporate proxy's
+      # root CA into ./certs to make model pulls work behind SSL inspection.
+      SSL_CERT_DIR: "/certs"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./certs:/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+    # --- Uncomment to enable NVIDIA GPU acceleration ---
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # --- One-shot: pull the required models, then exit ---
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: rag-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: "http://ollama:11434"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Pulling embedding model: ${EMBEDDING_MODEL:-nomic-embed-text}";
+        ollama pull ${EMBEDDING_MODEL:-nomic-embed-text} &&
+        echo "Pulling LLM: ${LLM_MODEL:-llama3.2}" &&
+        ollama pull ${LLM_MODEL:-llama3.2} &&
+        echo "All models ready.";
+    restart: "no"
+
+  # --- Flask backend (GraphRAG API) ---
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSECURE_TLS: "${INSECURE_TLS:-0}"
+    container_name: rag-backend
+    ports:
+      - "8000:8000"
+    environment:
+      NEO4J_URI: "bolt://neo4j:7687"
+      NEO4J_USER: "${NEO4J_USER:-neo4j}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-password123}"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      LLM_MODEL: "${LLM_MODEL:-llama3.2}"
+      EMBEDDING_MODEL: "${EMBEDDING_MODEL:-nomic-embed-text}"
+      EMBEDDING_DIM: "${EMBEDDING_DIM:-768}"
+      CHUNK_SIZE: "${CHUNK_SIZE:-800}"
+      CHUNK_OVERLAP: "${CHUNK_OVERLAP:-100}"
+      TOP_K: "${TOP_K:-5}"
+      ENABLE_ENTITY_EXTRACTION: "${ENABLE_ENTITY_EXTRACTION:-true}"
+      MAX_EXTRACTION_CHARS: "${MAX_EXTRACTION_CHARS:-8000}"
+      OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+
+  # --- React frontend (served by nginx, proxies /api to backend) ---
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        INSECURE_TLS: "${INSECURE_TLS:-0}"
+    container_name: rag-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  neo4j_data:
+  ollama_data:
