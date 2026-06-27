@@ -1,29 +1,29 @@
 # Architecture
 
-This document explains the two architectural pillars of the project: the **GraphRAG**
-retrieval design (the *what*) and the **clean-architecture modular monolith** on the
-backend (the *how*).
+This document covers the two architectural pillars of the project: the **GraphRAG**
+retrieval design (the _what_) and the **clean-architecture modular monolith** on the
+backend (the _how_). For screenshots and quick start, see the [README](../README.md).
 
 ## 1. GraphRAG design
 
-GraphRAG can be built as an escalating ladder of sophistication. The columns map each rung
-to where this repo stands:
+GraphRAG can be built as an escalating ladder of sophistication. The last column maps each
+rung to where this repo stands:
 
-| # | Architecture | Status here |
-|---|--------------|-------------|
-| 0 | **Baseline vector RAG** — `:Chunk` + vector index, top-k → prompt | ✅ implemented |
-| 1 | **Hybrid search** — union the vector and full-text indexes, normalise scores | ✅ implemented |
-| 2 | **Advanced retrieval** — parent-document retriever, step-back / HyDE query rewriting | ⬜ roadmap |
-| 3 | **Text2Cypher** — LLM generates Cypher for filtering/counting/aggregation | ⬜ roadmap |
-| 4 | **Agentic / router RAG** — retriever router + specialised templates + answer critic | ⬜ roadmap |
-| 5 | **LLM knowledge-graph construction** — typed `:Entity` + `[:RELATED_TO]`, entity resolution | 🟡 simplified |
-| 6 | **Microsoft-style GraphRAG** — community detection + summaries, global/local search | ⬜ roadmap |
+| #   | Architecture                                                                                | Status here     |
+| --- | ------------------------------------------------------------------------------------------- | --------------- |
+| 0   | **Baseline vector RAG** — `:Chunk` + vector index, top-k → prompt                           | ✅ implemented  |
+| 1   | **Hybrid search** — union the vector and full-text indexes, normalise scores                | ✅ implemented  |
+| 2   | **Advanced retrieval** — parent-document retriever, step-back / HyDE query rewriting        | ⬜ roadmap      |
+| 3   | **Text2Cypher** — LLM generates Cypher for filtering/counting/aggregation                   | ⬜ roadmap      |
+| 4   | **Agentic / router RAG** — retriever router + specialised templates + answer critic         | ⬜ roadmap      |
+| 5   | **LLM knowledge-graph construction** — typed `:Entity` + `[:RELATED_TO]`, entity resolution | 🟡 simplified   |
+| 6   | **Microsoft-style GraphRAG** — community detection + summaries, global/local search         | ⬜ roadmap      |
 
 Where this repo sits: **levels 0 and 1 in full**, plus a **simplified level 5** — it does
 LLM-extract a real entity/relationship graph and link chunks via `[:MENTIONS]`, but without
 entity resolution, without embedding entities, and with substring-based mention linking. On
 top of that it adds a **hand-rolled graph expansion** at query time (vector hit → one-hop
-`[:RELATED_TO]` facts) that echoes level-6 *local search* without its machinery (no entity
+`[:RELATED_TO]` facts) that echoes level-6 _local search_ without its machinery (no entity
 vector index, communities, or ranking). It deliberately skips levels 2–4 and the heavy parts
 of 5–6 — all additive, none requiring a re-architecture.
 
@@ -49,20 +49,41 @@ the database — vectors from different models are not comparable.
 
 Extraction is best-effort: if it fails the system degrades gracefully to plain vector RAG.
 
+<p align="center"><img src="img/flow-ingest.png" alt="Knowledge-creation sequence" width="880"></p>
+
 ### Retrieval (`AnswerQuestionUseCase`)
 
-1. **Embed** the question (same model).
+1. **Embed** the question (same model) — this query vector is the input to the vector search.
 2. **Hybrid search** the top-`k` chunks: union `db.index.vector.queryNodes` with
    `db.index.fulltext.queryNodes`, normalise each branch's scores by its own max, and merge.
    The question is sanitised of Lucene reserved characters first; if it has no usable
    keywords, retrieval falls back to vector-only.
 3. **Graph expansion**: collect the entities those chunks mention, then fetch their
    one-hop `[:RELATED_TO]` relationships as "graph facts".
-4. **Assemble** a context of passages + facts and ask the LLM to answer using *only* that
+4. **Assemble** a context of passages + facts and ask the LLM to answer using _only_ that
    context (grounding prompt). If nothing is retrieved, return a safe "I don't know".
+
+<p align="center"><img src="img/flow-query.png" alt="Question-answering sequence" width="880"></p>
 
 This is why the graph matters: two facts that live in different chunks but are connected
 through a shared entity can both reach the answer, which pure top-k vector RAG would miss.
+
+### Neo4j schema
+
+A single Neo4j database is **both** the vector store and the knowledge graph:
+
+```cypher
+(:Document {id, title})-[:HAS_CHUNK]->(:Chunk {id, index, text, embedding})
+(:Chunk)-[:MENTIONS]->(:Entity {name, type, description})
+(:Entity)-[:RELATED_TO {type, description}]->(:Entity)
+```
+
+Indexes and constraints are created idempotently on boot by `ensure_schema`:
+
+- **Vector index** `chunk_embeddings` on `Chunk.embedding` (cosine, 768-dim) — semantic search.
+- **Full-text index** `chunk_fulltext` on `Chunk.text` — the keyword half of hybrid search.
+- **Uniqueness constraints** on `Document.id`, `Chunk.id`, `Entity.name` (the last lets
+  `MERGE (:Entity {name})` deduplicate entities across documents).
 
 ## 2. Clean architecture (backend)
 
@@ -86,6 +107,12 @@ point inward**, toward the domain. The domain knows nothing about Flask, Neo4j, 
             └──────────────────────────────────────────────┘
                        container.py  ── wires it all together (composition root)
 ```
+
+The Dependency Inversion Principle in one picture — the application's use cases **«use»** the
+ports (interfaces) defined in `domain/`; the infrastructure adapters **implement** them. The
+domain never imports infrastructure, so every dependency arrow points inward:
+
+<p align="center"><img src="img/hexagonal.png" alt="Hexagonal ports and adapters" width="860"></p>
 
 ### Layers
 
@@ -113,15 +140,23 @@ point inward**, toward the domain. The domain knows nothing about Flask, Neo4j, 
   (Text2Cypher, community summaries) slot in as new use cases + ports without touching the
   existing ones.
 
+> **Runtime configuration.** Tuning parameters (chunk size, top-K, extraction toggle, …)
+> live in a mutable `RuntimeSettings` object, editable via `PUT /api/settings` (the Settings
+> tab), separate from the immutable boot `Config`. Because those settings are held in process
+> memory, the backend runs as a **single gunicorn worker** — multiple workers would each keep
+> their own copy and updates would be inconsistent.
+
 ## 3. Deployment topology
 
-Four containers wired by Docker Compose:
+Five services, wired by Docker Compose:
+
+<p align="center"><img src="img/architecture.png" alt="Deployment architecture" width="880"></p>
 
 - **`neo4j`** — graph + vector store. Exposes Bolt (7687) and Browser (7474).
 - **`ollama`** — serves the LLM and embedding models on 11434.
 - **`ollama-init`** — a one-shot job that pulls the models, then exits; the backend waits
   for it to complete successfully before starting.
-- **`backend`** — Flask/gunicorn on 8000; creates the Neo4j schema on boot (with retry
-  while Neo4j warms up).
+- **`backend`** — Flask/gunicorn (single worker) on 8000; creates the Neo4j schema on boot
+  (with retry while Neo4j warms up).
 - **`frontend`** — nginx serving the built React app on 3000 and reverse-proxying `/api`
   to the backend (so the browser never needs CORS or a separate API host).

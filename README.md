@@ -1,26 +1,30 @@
 # Local GraphRAG Knowledge Base
 
-A self-hosted, **fully offline** Retrieval-Augmented Generation (RAG) system. Paste text
-into the web UI → it's chunked, embedded, and turned into a **knowledge graph** in Neo4j.
-Ask questions → get answers from a **local LLM (Ollama)**, grounded only in your data.
-Nothing ever leaves your machine.
+> A self‑hosted, **fully offline** GraphRAG system — paste text, build a knowledge graph, ask grounded questions. Nothing ever leaves your machine.
 
-> **Proof of concept** — the full ingest → graph → retrieve → answer loop, runnable with a
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React 18">
+  <img src="https://img.shields.io/badge/Neo4j-5-4581C3?logo=neo4j&logoColor=white" alt="Neo4j 5">
+  <img src="https://img.shields.io/badge/Ollama-local-111?logo=ollama&logoColor=white" alt="Ollama">
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker Compose">
+  <img src="https://img.shields.io/badge/License-MIT-c2f23a" alt="License: MIT">
+</p>
+
+Paste any text into the web UI and it's chunked, embedded, and turned into a **knowledge
+graph** in Neo4j. Ask a question and a **local LLM (Ollama)** answers it — grounded only in
+what you added, using both semantic (vector) search and one‑hop graph expansion.
+
+> **Proof of concept** — the full _ingest → graph → retrieve → answer_ loop, runnable with a
 > single `docker compose up`.
 
-```
-┌──────────────┐   paste text    ┌─────────────────────────────┐   Cypher    ┌────────────┐
-│   React UI   │ ──────────────► │        Flask backend        │ ──────────► │   Neo4j    │
-│  MUI + TS    │ ◄────────────── │   (clean architecture)      │ ◄────────── │  graph +   │
-└──────────────┘   answer +      │  ingest / retrieve use-cases│   vectors   │  vectors   │
-                   sources       └──────────────┬──────────────┘             └────────────┘
-                                                │ embeddings + chat
-                                                ▼   Ollama (nomic-embed-text · llama3.2)
-```
+---
 
-## The app — four tabs
+## The app
 
-### ＋ Add knowledge
+A React + Material UI front end with four tabs.
+
+### Add knowledge
 
 Paste any text — it's chunked, embedded, and an entity/relationship graph is extracted into Neo4j.
 
@@ -33,6 +37,9 @@ over the graph, and answered by the local LLM — with expandable **sources** (p
 
 ![Ask tab](docs/img/ask.png)
 
+_The app starts empty — the answer above is grounded in documents that were ingested first
+(the stats bar reflects that). You build the knowledge base with your own text._
+
 ### Knowledge graph
 
 Interactive [Cytoscape](https://js.cytoscape.org/) view of the extracted entities (coloured
@@ -42,10 +49,12 @@ by type) and their relationships. Drag nodes, scroll to zoom, refresh after inge
 
 ### Settings
 
-Live-tune the RAG pipeline — chunk size / overlap, top‑K, max extraction characters, and the
-entity-extraction toggle. Changes apply immediately.
+Live‑tune the RAG pipeline — chunk size / overlap, top‑K, max extraction characters, and the
+entity‑extraction toggle. Changes apply immediately.
 
 ![Settings tab](docs/img/settings.png)
+
+---
 
 ## Quick start
 
@@ -60,28 +69,52 @@ docker compose up --build
 | Backend API   | http://localhost:8000/api/health                |
 
 First run downloads ~2.5 GB of Ollama models — wait for `RAG backend ready.` in the logs,
-then open the UI. CPU works; a GPU is much faster (uncomment the `deploy` block for
-`ollama` in [docker-compose.yml](docker-compose.yml)).
+then open the UI. CPU works; a GPU is much faster (uncomment the `deploy` block for `ollama`
+in [docker-compose.yml](docker-compose.yml)).
 
 > **Behind a corporate proxy / antivirus** and the build or model pull fails with SSL
 > errors? See [Troubleshooting](#troubleshooting) below.
 
+---
+
+## Architecture
+
+Four services, wired by Docker Compose. The Flask backend follows **clean architecture**
+(dependencies point inward to the domain). **Neo4j** is both the vector store and the
+knowledge graph; **Ollama** serves the local chat and embedding models.
+
+<p align="center"><img src="docs/img/architecture.png" alt="System architecture" width="880"></p>
+
+Internally it's a **ports & adapters** (hexagonal) design: the domain core depends only on
+interfaces; the Ollama and Neo4j adapters implement them, so every dependency points inward.
+
+<p align="center"><img src="docs/img/hexagonal.png" alt="Hexagonal ports and adapters" width="860"></p>
+
+Deep dive — clean‑architecture rationale, the Neo4j schema, and the GraphRAG sophistication
+ladder: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+---
+
 ## How it works
 
-The graph database does double duty. Neo4j stores **chunk embeddings** (a native vector
-index) _and_ an **entity/relationship graph** — so retrieval is hybrid:
+Neo4j does double duty: it stores **chunk embeddings** (a native vector index) _and_ an
+**entity/relationship graph**. Retrieval is therefore **hybrid** — semantic vector search
+finds relevant passages, then a one‑hop graph traversal pulls in connected facts that plain
+vector RAG would miss.
 
-```
-ingest:  text → chunk → embed → :Chunk (+vector index)
-                              └→ LLM extracts :Entity + [:RELATED_TO], links [:MENTIONS]
+### Creating knowledge
 
-query:   question → embed + keywords → hybrid search top-K :Chunk → expand one hop
-                         → LLM answers from that (passages + graph facts) context only
-```
+`text → chunk → embed (Ollama) → extract entities & relationships (Ollama) → store in Neo4j`
 
-That one-hop graph expansion is the extra structured context plain vector RAG can't give
-you. Full pipeline, Neo4j schema, and the clean-architecture rationale:
-**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+<p align="center"><img src="docs/img/flow-ingest.png" alt="Knowledge-creation sequence" width="880"></p>
+
+### Answering a question
+
+`question → embed (Ollama) → hybrid search (Neo4j) → graph expansion → grounded answer (Ollama)`
+
+<p align="center"><img src="docs/img/flow-query.png" alt="Question-answering sequence" width="880"></p>
+
+---
 
 ## Tech stack
 
@@ -183,6 +216,8 @@ cd frontend && npm install && npm run dev
 ```
 
 </details>
+
+---
 
 ## Roadmap
 
