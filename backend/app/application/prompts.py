@@ -44,19 +44,23 @@ def extraction_prompt(text: str) -> str:
 
 
 ANSWER_SYSTEM = (
-    "You are a helpful assistant that answers questions using ONLY the provided "
-    "context, which comes from the user's own knowledge base. "
-    "If the context does not contain the answer, say you don't have enough "
-    "information. Be concise and factual. Do not invent details."
+    "You answer questions using ONLY the information provided to you, which comes from "
+    "the user's own knowledge base. Write the answer in a natural, direct voice, as if "
+    "the knowledge were your own. Do NOT mention or cite 'the context', 'the passages', "
+    "'sources', 'background information', or any passage numbers, and do not say things "
+    "like 'based on the provided text'. If the information given does not answer the "
+    "question, say you don't have enough information. Be concise and factual, and never "
+    "invent details."
 )
 
 ANSWER_PROMPT_TEMPLATE = """\
-Answer the question using only the context below.
+Using only the information below, answer the question in a natural voice. Do not refer to
+this information as context, passages, or sources, and do not number or cite it.
 
-# Knowledge graph facts
+# Known facts
 {facts}
 
-# Retrieved passages
+# Reference notes
 {passages}
 
 # Question
@@ -73,9 +77,7 @@ def answer_prompt(question: str, context: RetrievalContext) -> str:
         facts = "(none)"
 
     if context.chunks:
-        passages = "\n\n".join(
-            f"[Passage {i + 1}] {chunk.text}" for i, chunk in enumerate(context.chunks)
-        )
+        passages = "\n\n".join(chunk.text for chunk in context.chunks)
     else:
         passages = "(none)"
 
