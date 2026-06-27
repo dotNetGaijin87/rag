@@ -1,9 +1,4 @@
-"""Use case: answer a question with GraphRAG retrieval.
-
-Pipeline:
-    question -> embed -> vector search chunks -> expand graph (entities -> facts)
-    -> assemble context -> LLM generates grounded answer
-"""
+"""Answer a question: retrieve chunks, expand the graph, and generate a grounded reply."""
 
 from __future__ import annotations
 
@@ -43,7 +38,6 @@ class AnswerQuestionUseCase:
 
         chunks = self._graph.search_chunks(question, query_embedding, self._settings.top_k)
 
-        # Graph expansion: pull relationships around the entities those chunks mention.
         entity_names = sorted({name for chunk in chunks for name in chunk.entities})
         facts = (
             self._graph.graph_facts_for_entities(entity_names, self._max_facts)

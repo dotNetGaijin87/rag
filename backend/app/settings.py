@@ -1,9 +1,4 @@
-"""Runtime-adjustable RAG settings.
-
-Unlike :class:`Config` (immutable, sourced from env at boot), these values can be
-changed at runtime via the API. They are held in memory only — restarting the backend
-resets them to the env defaults.
-"""
+"""Runtime-editable RAG settings (in-memory; reset to env defaults on restart)."""
 
 from __future__ import annotations
 
@@ -11,7 +6,6 @@ from threading import RLock
 
 from .config import Config
 
-# Fields the user may change via the API.
 EDITABLE_FIELDS = (
     "chunk_size",
     "chunk_overlap",
@@ -40,8 +34,6 @@ def _as_bool(value: object, name: str) -> bool:
 
 
 class RuntimeSettings:
-    """Thread-safe holder of the editable RAG tuning parameters."""
-
     def __init__(self, config: Config) -> None:
         self._lock = RLock()
         self.chunk_size = config.chunk_size
@@ -68,7 +60,6 @@ class RuntimeSettings:
         }
 
     def update(self, data: dict) -> dict:
-        """Validate and apply a partial update. Raises ValueError on bad input."""
         if not isinstance(data, dict):
             raise ValueError("Request body must be a JSON object.")
 
@@ -92,7 +83,6 @@ class RuntimeSettings:
                 data["enable_entity_extraction"], "enable_entity_extraction"
             )
 
-        # Cross-field rule: overlap must be smaller than chunk size.
         chunk_size = pending.get("chunk_size", self.chunk_size)
         chunk_overlap = pending.get("chunk_overlap", self.chunk_overlap)
         if chunk_overlap >= chunk_size:

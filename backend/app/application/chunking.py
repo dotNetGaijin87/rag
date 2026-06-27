@@ -1,17 +1,10 @@
-"""Text chunking — pure function, no dependencies.
-
-Sliding window over whitespace-delimited tokens so words are never split mid-token.
-"""
+"""Sliding-window text chunking on word boundaries."""
 
 from __future__ import annotations
 
 
 def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
-    """Split *text* into overlapping chunks of roughly *chunk_size* characters.
-
-    The window advances by ``chunk_size - overlap`` characters each step and snaps to
-    word boundaries so chunks never cut a word in half.
-    """
+    """Split text into overlapping ~chunk_size-char chunks, never splitting a word."""
     text = (text or "").strip()
     if not text:
         return []
@@ -41,7 +34,6 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
 
 
 def _overlap_tail(words: list[str], overlap: int) -> tuple[list[str], int]:
-    """Return the trailing words of *words* whose combined length is <= *overlap*."""
     tail: list[str] = []
     length = 0
     for word in reversed(words):

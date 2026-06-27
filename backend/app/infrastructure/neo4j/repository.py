@@ -1,8 +1,4 @@
-"""Neo4j adapter — implements the GraphRepository port.
-
-Neo4j is used both as the graph store (entities + relationships) and as the vector
-store (chunk embeddings live on :Chunk nodes, served by a native vector index).
-"""
+"""Neo4j adapter — graph store and vector store in one."""
 
 from __future__ import annotations
 
@@ -32,14 +28,11 @@ _LUCENE_SPECIAL = re.compile(r'[+\-&|!(){}\[\]^"~*?:\\/]')
 
 
 def lucene_query(text: str) -> str:
-    """Turn a free-text question into a safe Lucene OR-query of its terms."""
     cleaned = _LUCENE_SPECIAL.sub(" ", text or "")
     return " ".join(term for term in cleaned.split() if term)
 
 
-# Hybrid retrieval: union the vector index and the full-text index, normalise each
-# branch's scores by its own max, then keep the best-scoring chunks. Mirrors the
-# "hybrid search" approach (vector for semantics, keyword for exact/rare terms).
+# Union the vector and full-text indexes, normalising each branch's scores by its own max.
 _HYBRID_CYPHER = f"""
 CALL {{
     CALL db.index.vector.queryNodes('{CHUNK_VECTOR_INDEX}', $k, $embedding) YIELD node, score
@@ -286,11 +279,9 @@ class Neo4jGraphRepository(GraphRepository):
             ]
 
     def graph_overview(self, limit: int) -> dict:
-        """Return a subgraph of entities + relationships for the UI to visualise."""
         nodes: dict[str, dict] = {}
         edges: list[dict] = []
         with self._driver.session() as session:
-            # Relationships (and the entities they connect).
             for r in session.run(
                 """
                 MATCH (a:Entity)-[rel:RELATED_TO]->(b:Entity)

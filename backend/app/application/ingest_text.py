@@ -1,8 +1,4 @@
-"""Use case: ingest pasted text into the GraphRAG knowledge base.
-
-Pipeline (baseline GraphRAG + entity extraction):
-    text -> chunk -> embed chunks -> extract entities/relationships -> store in graph
-"""
+"""Ingest text: chunk, embed, extract a graph, and store it."""
 
 from __future__ import annotations
 
@@ -53,7 +49,6 @@ class IngestTextUseCase:
             for i, (chunk_text_value, embedding) in enumerate(zip(raw_chunks, embeddings))
         ]
 
-        # One LLM call extracts the knowledge graph over the whole document.
         extraction = self._extract(text)
 
         self._graph.save_document(document_id, title, chunks, extraction)

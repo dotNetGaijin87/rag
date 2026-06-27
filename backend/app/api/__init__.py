@@ -1,4 +1,4 @@
-"""API layer: Flask blueprints (controllers)."""
+"""API layer."""
 
 from .routes import api
 

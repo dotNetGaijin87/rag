@@ -12,19 +12,16 @@ def _get_bool(name: str, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class Config:
-    # Neo4j
     neo4j_uri: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     neo4j_user: str = os.getenv("NEO4J_USER", "neo4j")
     neo4j_password: str = os.getenv("NEO4J_PASSWORD", "password123")
 
-    # Ollama
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     llm_model: str = os.getenv("LLM_MODEL", "llama3.2")
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
     embedding_dim: int = int(os.getenv("EMBEDDING_DIM", "768"))
     ollama_timeout: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
-    # RAG tuning
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "100"))
     top_k: int = int(os.getenv("TOP_K", "5"))

@@ -21,12 +21,12 @@ def create_app(config: Config | None = None) -> Flask:
 
     config = config or Config.from_env()
     app = Flask(__name__)
-    CORS(app)  # allow the React dev server / nginx proxy to call the API
+    CORS(app)
 
     container = Container(config)
     app.config["CONTAINER"] = container
 
-    # Ensure the graph schema (waits for Neo4j to be ready).
+    # Blocks until Neo4j is reachable, then creates indexes.
     container.graph.ensure_schema()
 
     app.register_blueprint(api, url_prefix="/api")

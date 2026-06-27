@@ -1,8 +1,4 @@
-"""HTTP routes — the interface/delivery layer.
-
-Thin controllers: parse the request, call a use case, serialize the result.
-No business logic lives here.
-"""
+"""HTTP routes."""
 
 from __future__ import annotations
 

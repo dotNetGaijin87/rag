@@ -1,7 +1,4 @@
-"""Prompt templates for extraction and answering.
-
-Kept in the application layer because they encode RAG behaviour, not infrastructure.
-"""
+"""Prompt templates for extraction and answering."""
 
 from __future__ import annotations
 

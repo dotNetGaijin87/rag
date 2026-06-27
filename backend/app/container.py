@@ -1,8 +1,4 @@
-"""Composition root — wires concrete adapters to use cases (dependency injection).
-
-This is the only place that knows about both the application layer and the
-infrastructure layer, keeping the wiring out of the framework and the core.
-"""
+"""Dependency-injection wiring."""
 
 from __future__ import annotations
 
@@ -16,8 +12,6 @@ from .settings import RuntimeSettings
 
 
 class Container:
-    """Builds and holds the application's wired dependencies."""
-
     def __init__(self, config: Config) -> None:
         self.config = config
 
@@ -38,7 +32,6 @@ class Container:
             embedding_dim=config.embedding_dim,
         )
 
-        # Runtime-adjustable tuning parameters (editable via /api/settings).
         self.settings = RuntimeSettings(config)
 
         self.ingest_text = IngestTextUseCase(

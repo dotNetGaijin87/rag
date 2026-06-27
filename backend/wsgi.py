@@ -1,4 +1,4 @@
-"""WSGI entrypoint — used by gunicorn in Docker and `python wsgi.py` locally."""
+"""WSGI entrypoint."""
 
 from app import create_app
 
