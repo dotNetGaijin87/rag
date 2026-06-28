@@ -13,7 +13,7 @@ rung to where this repo stands:
 | --- | ------------------------------------------------------------------------------------------- | --------------- |
 | 0   | **Baseline vector RAG** — `:Chunk` + vector index, top-k → prompt                           | ✅ implemented  |
 | 1   | **Hybrid search** — union the vector and full-text indexes, normalise scores                | ✅ implemented  |
-| 2   | **Advanced retrieval** — parent-document retriever, step-back / HyDE query rewriting        | ⬜ roadmap      |
+| 2   | **Advanced retrieval** — LLM reranking ✅; parent-document retriever, step-back / HyDE ⬜    | 🟡 simplified   |
 | 3   | **Text2Cypher** — LLM generates Cypher for filtering/counting/aggregation                   | ⬜ roadmap      |
 | 4   | **Agentic / router RAG** — retriever router + specialised templates + answer critic         | ⬜ roadmap      |
 | 5   | **LLM knowledge-graph construction** — typed `:Entity` + `[:RELATED_TO]`, entity resolution | 🟡 simplified   |
@@ -24,7 +24,8 @@ real entity/relationship graph from every chunk, deduplicates entities case-inse
 LLM-merges the descriptions a name collects into one summary (mention linking is still
 substring-based; full entity resolution is not done) — and **part of level 6**: entity-anchored
 _local search_ (entities are embedded into their own vector index and matched directly to the
-query), plus one-hop `[:RELATED_TO]` graph expansion. It deliberately skips levels 2–4 and the
+query), plus one-hop `[:RELATED_TO]` graph expansion. It also adds **LLM reranking** from level
+2. It deliberately skips levels 3–4, the rest of level 2 (parent-document / step-back), and the
 heavy parts of 5–6 (full entity resolution, community detection / global search) — all additive,
 none requiring a re-architecture.
 
@@ -57,16 +58,19 @@ Extraction is best-effort: if it fails the system degrades gracefully to plain v
 ### Retrieval (`AnswerQuestionUseCase`)
 
 1. **Embed** the question (same model) — this query vector is the input to the vector search.
-2. **Hybrid search** the top-`k` chunks: union `db.index.vector.queryNodes` with
-   `db.index.fulltext.queryNodes`, normalise each branch's scores by its own max, and merge.
-   The question is sanitised of Lucene reserved characters first; if it has no usable
-   keywords, retrieval falls back to vector-only.
-3. **Entity entry points** ("local search"): match the query vector against the
+2. **Hybrid search**: union `db.index.vector.queryNodes` with `db.index.fulltext.queryNodes`,
+   normalise each branch's scores by its own max, and merge. The question is sanitised of
+   Lucene reserved characters first; if it has no usable keywords, retrieval falls back to
+   vector-only. When reranking is on, this over-fetches `top_k × RERANK_OVERFETCH` candidates.
+3. **Rerank** (when `enable_reranking`): the LLM reorders the candidates by relevance to the
+   question and the best `top_k` are kept. Best-effort — an LLM error or unparseable ranking
+   falls back to the retrieval order.
+4. **Entity entry points** ("local search"): match the query vector against the
    `entity_embeddings` index to find the most relevant entities directly — not only the
    ones the retrieved chunks happen to mention.
-4. **Graph expansion**: union the chunk-mentioned entities with those entry-point entities,
+5. **Graph expansion**: union the chunk-mentioned entities with those entry-point entities,
    then fetch their one-hop `[:RELATED_TO]` relationships as "graph facts".
-5. **Assemble** a context of passages + facts and ask the LLM to answer using _only_ that
+6. **Assemble** a context of passages + facts and ask the LLM to answer using _only_ that
    context (grounding prompt). If nothing is retrieved, return a safe "I don't know".
 
 <p align="center"><img src="img/flow-query.png" alt="Question-answering sequence" width="880"></p>

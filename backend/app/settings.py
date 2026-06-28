@@ -11,6 +11,7 @@ EDITABLE_FIELDS = (
     "chunk_overlap",
     "top_k",
     "enable_entity_extraction",
+    "enable_reranking",
     "max_extraction_chars",
 )
 
@@ -40,6 +41,7 @@ class RuntimeSettings:
         self.chunk_overlap = config.chunk_overlap
         self.top_k = config.top_k
         self.enable_entity_extraction = config.enable_entity_extraction
+        self.enable_reranking = config.enable_reranking
         self.max_extraction_chars = config.max_extraction_chars
         # Read-only (informational) — changing the embedding model/dim would invalidate
         # the existing vector index, so these are fixed at boot via env.
@@ -53,6 +55,7 @@ class RuntimeSettings:
             "chunk_overlap": self.chunk_overlap,
             "top_k": self.top_k,
             "enable_entity_extraction": self.enable_entity_extraction,
+            "enable_reranking": self.enable_reranking,
             "max_extraction_chars": self.max_extraction_chars,
             "llm_model": self.llm_model,
             "embedding_model": self.embedding_model,
@@ -82,6 +85,8 @@ class RuntimeSettings:
             pending["enable_entity_extraction"] = _as_bool(
                 data["enable_entity_extraction"], "enable_entity_extraction"
             )
+        if "enable_reranking" in data:
+            pending["enable_reranking"] = _as_bool(data["enable_reranking"], "enable_reranking")
 
         chunk_size = pending.get("chunk_size", self.chunk_size)
         chunk_overlap = pending.get("chunk_overlap", self.chunk_overlap)

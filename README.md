@@ -113,7 +113,7 @@ plain vector RAG would miss.
 
 ### Answering a question
 
-`question → embed (Ollama) → hybrid search (Neo4j) → graph expansion → grounded answer (Ollama)`
+`question → embed (Ollama) → hybrid search + LLM rerank → entity & graph expansion → grounded answer (Ollama)`
 
 <p align="center"><img src="docs/img/flow-query.png" alt="Question-answering sequence" width="880"></p>
 
