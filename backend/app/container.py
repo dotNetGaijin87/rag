@@ -47,6 +47,7 @@ class Container:
             llm=self.llm,
             graph=self.graph,
             settings=self.settings,
+            rerank_overfetch=config.rerank_overfetch,
         )
 
     def close(self) -> None:

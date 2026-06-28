@@ -2,12 +2,32 @@
 
 import pytest
 
-from app.application.answer_question import AnswerQuestionUseCase
+from app.application.answer_question import AnswerQuestionUseCase, _parse_rank_order
 from app.config import Config
-from app.domain.models import GraphFact, RetrievedChunk
+from app.domain.models import ExtractionResult, GraphFact, RetrievedChunk
+from app.domain.ports import LLMProvider
 from app.settings import RuntimeSettings
 
 from tests.conftest import FakeEmbeddingProvider, FakeGraphRepository, FakeLLMProvider
+
+
+def _chunks(*ids):
+    return [
+        RetrievedChunk(chunk_id=i, document_id="d", text=f"text {i}", score=0.5, entities=[])
+        for i in ids
+    ]
+
+
+def _make_uc(llm, top_k=5, overfetch=4, graph=None):
+    settings = RuntimeSettings(Config())
+    settings.top_k = top_k
+    return AnswerQuestionUseCase(
+        embeddings=FakeEmbeddingProvider(),
+        llm=llm,
+        graph=graph or FakeGraphRepository(),
+        settings=settings,
+        rerank_overfetch=overfetch,
+    )
 
 
 @pytest.mark.parametrize("blank", ["", "   ", None])
@@ -98,6 +118,7 @@ def test_graph_can_answer_when_chunk_search_returns_nothing():
 def test_retrieval_uses_top_k_from_settings(graph):
     settings = RuntimeSettings(Config())
     settings.top_k = 9
+    settings.enable_reranking = False  # plain top_k retrieval (no over-fetch)
     use_case = AnswerQuestionUseCase(
         embeddings=FakeEmbeddingProvider(),
         llm=FakeLLMProvider(),
@@ -108,3 +129,66 @@ def test_retrieval_uses_top_k_from_settings(graph):
     use_case.execute(question="What did Curie discover?")
 
     assert graph.search_calls[-1]["k"] == 9
+
+
+def test_parse_rank_order_dedupes_and_ignores_out_of_range():
+    assert _parse_rank_order("3, 1, 1, 9, 2", 3) == [2, 0, 1]
+
+
+def test_rerank_reorders_chunks_by_llm_ranking():
+    use_case = _make_uc(FakeLLMProvider(answer="3, 1, 2"), top_k=3)
+
+    out = use_case._rerank("q", _chunks("a", "b", "c", "d"))
+
+    assert [c.chunk_id for c in out] == ["c", "a", "b"]
+
+
+def test_rerank_appends_chunks_the_llm_omitted():
+    use_case = _make_uc(FakeLLMProvider(answer="2"), top_k=3)
+
+    out = use_case._rerank("q", _chunks("a", "b", "c", "d"))
+
+    assert [c.chunk_id for c in out] == ["b", "a", "c"]
+
+
+def test_rerank_falls_back_to_retrieval_order_when_unparseable():
+    use_case = _make_uc(FakeLLMProvider(answer="no numbers here"), top_k=2)
+
+    out = use_case._rerank("q", _chunks("a", "b", "c"))
+
+    assert [c.chunk_id for c in out] == ["a", "b"]
+
+
+def test_rerank_is_skipped_when_candidates_already_fit():
+    llm = FakeLLMProvider()
+    use_case = _make_uc(llm, top_k=5)
+
+    out = use_case._rerank("q", _chunks("a", "b"))
+
+    assert [c.chunk_id for c in out] == ["a", "b"]
+    assert llm.generate_calls == []  # no LLM call when there is nothing to rerank
+
+
+def test_rerank_falls_back_when_the_llm_errors():
+    class _BoomLLM(LLMProvider):
+        def generate(self, system, prompt):
+            raise RuntimeError("boom")
+
+        def extract_graph(self, text):
+            return ExtractionResult()
+
+    use_case = _make_uc(_BoomLLM(), top_k=2)
+
+    out = use_case._rerank("q", _chunks("a", "b", "c"))
+
+    assert [c.chunk_id for c in out] == ["a", "b"]
+
+
+def test_execute_overfetches_then_reranks():
+    graph = FakeGraphRepository(chunks=_chunks("a", "b", "c", "d", "e", "f"))
+    use_case = _make_uc(FakeLLMProvider(answer="2, 1"), top_k=2, overfetch=4, graph=graph)
+
+    answer = use_case.execute(question="q")
+
+    assert graph.search_calls[-1]["k"] == 8  # top_k (2) * overfetch (4)
+    assert [c.chunk_id for c in answer.context.chunks] == ["b", "a"]

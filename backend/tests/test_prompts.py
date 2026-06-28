@@ -1,6 +1,11 @@
 """Unit tests for prompt building — assert content is included, not exact wording."""
 
-from app.application.prompts import answer_prompt, extraction_prompt, summarize_prompt
+from app.application.prompts import (
+    answer_prompt,
+    extraction_prompt,
+    rerank_prompt,
+    summarize_prompt,
+)
 from app.domain.models import GraphFact, RetrievalContext, RetrievedChunk
 
 
@@ -39,3 +44,11 @@ def test_summarize_prompt_includes_subject_and_descriptions():
     assert "Marie Curie" in prompt
     assert "A physicist" in prompt
     assert "Discovered radium" in prompt
+
+
+def test_rerank_prompt_numbers_the_passages_and_includes_the_question():
+    prompt = rerank_prompt("What did Curie discover?", ["radium is radioactive", "the sky"])
+
+    assert "What did Curie discover?" in prompt
+    assert "[1] radium is radioactive" in prompt
+    assert "[2] the sky" in prompt

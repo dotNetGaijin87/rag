@@ -113,3 +113,24 @@ Merged description:
 def summarize_prompt(subject: str, descriptions: list[str]) -> str:
     listed = "\n".join(f"- {description}" for description in descriptions)
     return SUMMARIZE_PROMPT_TEMPLATE.format(subject=subject, descriptions=listed)
+
+
+RERANK_SYSTEM = (
+    "You rank passages by how well they help answer the user's question. "
+    "Output only the passage numbers, most relevant first, separated by commas — "
+    "list every number exactly once and write nothing else."
+)
+
+RERANK_PROMPT_TEMPLATE = """\
+Question: {question}
+
+Passages:
+{passages}
+
+Ranking (passage numbers, most relevant first):
+"""
+
+
+def rerank_prompt(question: str, passages: list[str]) -> str:
+    listed = "\n".join(f"[{i + 1}] {text[:400]}" for i, text in enumerate(passages))
+    return RERANK_PROMPT_TEMPLATE.format(question=question, passages=listed)

@@ -29,6 +29,9 @@ class Config:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "100"))
     top_k: int = int(os.getenv("TOP_K", "5"))
+    enable_reranking: bool = _get_bool("ENABLE_RERANKING", True)
+    # Retrieve top_k * this many candidates, then the LLM reranks down to top_k.
+    rerank_overfetch: int = int(os.getenv("RERANK_OVERFETCH", "4"))
     enable_entity_extraction: bool = _get_bool("ENABLE_ENTITY_EXTRACTION", True)
     max_extraction_chars: int = int(os.getenv("MAX_EXTRACTION_CHARS", "8000"))
 

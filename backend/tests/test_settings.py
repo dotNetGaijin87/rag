@@ -74,3 +74,11 @@ def test_updates_extraction_flag_and_max_chars():
     assert s.enable_entity_extraction is False
     assert s.max_extraction_chars == 5000
     assert out["max_extraction_chars"] == 5000
+
+
+def test_toggles_reranking_flag():
+    s = _settings()
+    assert "enable_reranking" in s.to_dict()
+    out = s.update({"enable_reranking": False})
+    assert s.enable_reranking is False
+    assert out["enable_reranking"] is False
